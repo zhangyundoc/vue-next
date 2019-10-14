@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>effect</title>
+</head>
+<body>
+    <script src="../../packages/reactivity/dist/reactivity.global.js"></script>
+    <script>
+        const { reactive, effect, toRaw } = VueObserver
+        // should run the passed function once (wrapped by a effect)
+        // function f() {
+        //     console.log('call fn')
+        // }
+        // effect(f)
+        // should observe basic properties
+
+        // let dummy
+        // const counter = reactive({ num: 0 })
+        // effect(() => {
+        //     dummy = counter.num
+        // })
+        // console.log(dummy)
+        // counter.num = 7
+        // console.log(dummy)
+        // should observe multiple properties
+        // let dummy
+        // const counter = reactive({ num1: 0, num2: 0 })
+        // effect(() => {
+        //     dummy = counter.num1 + counter.num1 + counter.num2
+        // })
+        // console.log(dummy)
+        // counter.num1 = counter.num2 = 7
+        // console.log(dummy)
+        // should handle multiple effects
+        // let dummy1, dummy2
+        // const counter = reactive({ num: 0 })
+        // const e1 = effect(() => {
+        //     dummy1 = counter.num
+        // })
+        // const e2 = effect(() => {
+        //     dummy2 = counter.num
+        // })
+        // console.log(dummy1)
+        // console.log(dummy2)
+        // counter.num++
+        // console.log(dummy1)
+        // console.log(dummy2)
+        // should observe nested properties
+        // let dummy
+        // const counter = reactive({ nested: { num: 0 } })
+        // const e1 = effect(() => {
+        //     dummy = counter.nested.num
+        // })
+        // console.log(dummy)
+        // counter.nested.num = 8
+        // console.log(dummy)
+        // should observe delete operations
+        // let dummy
+        // const obj = reactive({ prop: 'value' })
+        // effect(() => {
+        //     dummy = obj.prop
+        // })
+        // console.log(dummy)
+        // delete obj.prop
+        // console.log(dummy)
+        // should observe has operations
+        // let dummy
+        // const obj = reactive({ prop: 'value' })
+        // effect(() => {
+        //     dummy = 'prop' in obj
+        // })
+        // console.log(dummy)
+        // delete obj.prop
+        // console.log(dummy)
+        // obj.prop = 12
+        // console.log(dummy)
+        // should observe properties on the prototype chain （源码未理解）
+        // let dummy
+        // const counter = reactive({ num: 0 })
+        // const parentCounter = reactive({ num: 2 })
+        // Object.setPrototypeOf(counter, parentCounter)
+        // effect(() => {
+        //     dummy = counter.num
+        // })
+        // console.log(dummy)
+        // delete counter.num
+        // console.log(dummy)
+        // parentCounter.num = 4
+        // console.log(dummy)
+        // counter.num = 3
+        // console.log(dummy)
+        // should observe has operations on the prototype chain （源码未理解）
+        // let dummy
+        // const counter = reactive({ num: 0 })
+        // const parentCounter = reactive({ num: 2 })
+        // Object.setPrototypeOf(counter, parentCounter)
+        // effect(() => {
+        //     dummy = 'num' in counter
+        // })
+        // console.log(dummy)
+        // delete counter.num
+        // console.log(dummy)
+        // delete parentCounter.num
+        // console.log(dummy)
+        // counter.num = 3
+        // console.log(dummy)
+        // should observe inherited property accessors
+        // let dummy, parentDummy, hiddenValue
+        // const obj = reactive({})
+        // const parent = reactive({
+        //     set prop(value) {
+        //         hiddenValue = value
+        //     },
+        //     get prop() {
+        //         return hiddenValue
+        //     }
+        // })
+        // Object.setPrototypeOf(obj, parent)
+        // effect(() => {
+        //     dummy = obj.prop
+        // })
+        // effect(() => {
+        //     parentDummy = parent.prop
+        // })
+        // console.log(dummy)
+        // console.log(parentDummy)
+        // obj.prop = 4
+        // console.log(dummy)
+        // console.log(parentDummy)
+        // // this doesn't work, should it?
+        // // expect(parentDummy).toBe(4)
+        // parent.prop = 2
+        // console.log(dummy)
+        // console.log(parentDummy)
+        // should observe function call chains
+        // let dummy
+        // const counter = reactive({ num: 0 })
+        // function getNum() {
+        //     return counter.num
+        // }
+        // effect(() => {
+        //     dummy = getNum()
+        // })
+        // console.log(dummy)
+        // counter.num = 2
+        // console.log(dummy)
+        // should observe iteration
+        // let dummy
+        // const list = reactive(['Hello'])
+        // effect(() => {
+        //     dummy = list.join(' ')
+        // })
+        // console.log(dummy)
+        // list.push('World!')
+        // console.log(dummy)
+        // list.shift()
+        // console.log(dummy)
+        // should observe implicit array length changes
+        // let dummy
+        // const list = reactive(['Hello'])
+        // effect(() => {
+        //     dummy = list.join(' ')
+        // })
+        // console.log(dummy)
+        // list[1] = 'World!'
+        // console.log(dummy)
+        // list[3] = 'xzw'
+        // console.log(dummy)
+        // should observe sparse array mutations
+        // let dummy
+        // const list = reactive([])
+        // list[1] = 'World!'
+        // effect(() => {
+        //     dummy = list.join(' ')
+        // })
+        // console.log(dummy)
+        // list[0] = 'Hello'
+        // console.log(dummy)
+        // list.pop()
+        // console.log(dummy)
+        // should observe enumeration
+        // let dummy = 0
+        // const numbers = reactive({ num1: 3 })
+        // effect(() => {
+        //     dummy = 0
+        //     for (let key in numbers) {
+        //         dummy += numbers[key]
+        //     }
+        // })
+        // console.log(dummy)
+        // numbers.num2 = 4
+        // console.log(dummy)
+        // delete numbers.num1
+        // console.log(dummy)
+        // should observe symbol keyed properties
+
+        // const key = Symbol('symbol keyed prop')
+        // let dummy, hasDummy
+        // const obj = reactive({ [key]: 'value' })
+        // effect(() => {
+        //     dummy = obj[key]
+        // })
+        // effect(() => {
+        //     hasDummy = key in obj
+        // })
+        // console.log(dummy, hasDummy)
+        // obj[key] = 'newValue'
+        // console.log(dummy)
+        // delete obj[key]
+        // console.log(dummy, hasDummy)
+        // should not observe well-known symbol keyed properties
+        // const key = Symbol.isConcatSpreadable
+        // let dummy
+        // const array = reactive([])
+        // effect(() => {
+        //     dummy = array[key]
+        // })
+        // console.log(array[key])
+        // console.log(dummy)
+        // array[key] = true
+        // console.log(array[key])
+        // console.log(dummy)
+        // should observe function valued properties
+        // const oldFunc = () => {}
+        // const newFunc = () => {}
+        // let dummy
+        // const obj = reactive({ func: oldFunc })
+        // effect(() => {
+        //     dummy = obj.func
+        // })
+        // console.log(dummy)
+        // obj.func = newFunc
+        // console.log(dummy)
+        // should not observe set operations without a value change
+
+        // let hasDummy, getDummy
+        // const obj = reactive({ prop: 'value' })
+        // const getSpy = () => {
+        //     getDummy = obj.prop
+        // }
+        // const hasSpy = () => {
+        //     hasDummy = 'prop' in obj
+        // }
+        // effect(getSpy)
+        // effect(hasSpy)
+        // console.log(getDummy, hasDummy)
+        // obj.prop = 'value'
+        // // 值相同 getSpy, hasSpy不会执行
+        // console.log(getDummy, hasDummy)
+        // should not observe raw mutations
+        // let dummy
+        // const obj = reactive({})
+        // effect(() => {
+        //     dummy = toRaw(obj).prop
+        // })
+        // console.log(dummy)
+        // obj.prop = 'value'
+        // console.log(dummy)
+        // should not be triggered by raw mutations
+        // let dummy
+        // const obj = reactive({})
+        // effect(() => {
+        //     dummy = obj.prop
+        // })
+        // console.log(dummy)
+        // toRaw(obj).prop = 'value'
+        // console.log(dummy)
+        // should not be triggered by inherited raw setters
+        // let dummy, parentDummy, hiddenValue
+        // const obj = reactive({})
+        // const parent = reactive({
+        //     set prop(value) {
+        //         hiddenValue = value
+        //     },
+        //     get prop() {
+        //         return hiddenValue
+        //     }
+        // })
+        // Object.setPrototypeOf(obj, parent)
+        // effect(() => {
+        //     dummy = obj.prop
+        // })
+        // effect(() => {
+        //     parentDummy = parent.prop
+        // })
+        // console.log(dummy, parentDummy)
+        // toRaw(obj).prop = 4
+        // console.log(dummy, parentDummy)
+    </script>
+</body>
+</html>
