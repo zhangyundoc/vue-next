@@ -37,6 +37,7 @@ export type Data = { [key: string]: unknown }
 export interface FunctionalComponent<P = {}> {
   (props: P, ctx: SetupContext): VNodeChild
   props?: ComponentPropsOptions<P>
+  inheritAttrs?: boolean
   displayName?: string
 }
 
@@ -245,8 +246,7 @@ export function setupStatefulComponent(
     if (Component.components) {
       const names = Object.keys(Component.components)
       for (let i = 0; i < names.length; i++) {
-        const name = names[i]
-        validateComponentName(name, instance.appContext.config)
+        validateComponentName(names[i], instance.appContext.config)
       }
     }
     if (Component.directives) {

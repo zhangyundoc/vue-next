@@ -52,7 +52,7 @@ import {
   createSuspenseBoundary,
   normalizeSuspenseChildren
 } from './suspense'
-import { handleError, ErrorCodes } from './errorHandling'
+import { handleError, ErrorCodes, callWithErrorHandling } from './errorHandling'
 
 const prodEffectOptions = {
   scheduler: queueJob
@@ -123,7 +123,7 @@ export interface RendererOptions<HostNode = any, HostElement = any> {
 
 export type RootRenderFunction<HostNode, HostElement> = (
   vnode: VNode<HostNode, HostElement> | null,
-  dom: HostElement | string
+  dom: HostElement
 ) => void
 
 /**
@@ -657,7 +657,7 @@ export function createRenderer<
     if (n1 == null) {
       const target = (n2.target = isString(targetSelector)
         ? hostQuerySelector(targetSelector)
-        : null)
+        : targetSelector)
       if (target != null) {
         if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
           hostSetElementText(target, children as string)
@@ -1852,25 +1852,18 @@ export function createRenderer<
     } else if (isRef(ref)) {
       ref.value = value
     } else if (isFunction(ref)) {
-      ref(value, refs)
+      callWithErrorHandling(ref, parent, ErrorCodes.FUNCTION_REF, [value, refs])
     } else if (__DEV__) {
       warn('Invalid template ref type:', value, `(${typeof value})`)
     }
   }
 
-  function render(vnode: HostVNode | null, rawContainer: HostElement | string) {
-    let container: any = rawContainer
-    if (isString(container)) {
-      container = hostQuerySelector(container)
-      if (!container) {
-        if (__DEV__) {
-          warn(
-            `Failed to locate root container: ` + `querySelector returned null.`
-          )
-        }
-        return
-      }
+  const render: RootRenderFunction<
+    HostNode,
+    HostElement & {
+      _vnode: HostVNode | null
     }
+  > = (vnode, container) => {
     if (vnode == null) {
       if (container._vnode) {
         unmount(container._vnode, null, null, true)
