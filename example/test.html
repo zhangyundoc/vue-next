@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <script src="../packages/vue/dist/vue.global.js"></script>
+    <style>
+        #box {
+            text-align: center;
+        }
+        button {
+            width: 300px;
+            height: 40px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app"></div>
+    <script>
+        const { reactive, computed, effect, createApp } = Vue
+        const App = {
+            template: `
+                <div id="box">
+                    <button @click="add">{{ state.count }}</button>
+                </div>
+            `,
+            setup() {
+                const state = reactive({
+                    count: 0
+                })
+                function add() {
+                    state.count++
+                }
+                effect(() => {
+                    console.log('count change', state.count);
+                })
+                return {
+                    state,
+                    add
+                }
+            }
+        }
+        createApp().mount(App, '#app')
+    </script>
+</body>
+
+</html>
