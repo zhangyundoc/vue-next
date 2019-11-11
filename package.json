@@ -42,6 +42,8 @@
     "lerna": "^3.16.4",
     "lint-staged": "^9.2.3",
     "minimist": "^1.2.0",
+    "postcss": "^7.0.21",
+    "postcss-selector-parser": "^6.0.2",
     "prettier": "~1.14.0",
     "rollup": "^1.19.4",
     "rollup-plugin-alias": "^2.0.0",
