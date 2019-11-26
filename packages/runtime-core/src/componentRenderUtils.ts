@@ -80,10 +80,26 @@ export function renderComponentRoot(
       } else if (__DEV__ && !accessedAttrs) {
         warn(
           `Extraneous non-props attributes (${Object.keys(attrs).join(',')}) ` +
-            `were passed to component but could not be automatically inhertied ` +
+            `were passed to component but could not be automatically inherited ` +
             `because component renders fragment or text root nodes.`
         )
       }
+    }
+
+    // inherit transition data
+    if (vnode.transition != null) {
+      if (
+        __DEV__ &&
+        !(result.shapeFlag & ShapeFlags.COMPONENT) &&
+        !(result.shapeFlag & ShapeFlags.ELEMENT) &&
+        result.type !== Comment
+      ) {
+        warn(
+          `Component inside <Transition> renders non-element root node ` +
+            `that cannot be animated.`
+        )
+      }
+      result.transition = vnode.transition
     }
   } catch (err) {
     handleError(err, instance, ErrorCodes.RENDER_FUNCTION)

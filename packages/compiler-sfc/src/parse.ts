@@ -7,6 +7,8 @@ import {
   SourceLocation
 } from '@vue/compiler-core'
 import { RawSourceMap } from 'source-map'
+import LRUCache from 'lru-cache'
+import { generateCodeFrame } from '@vue/shared'
 
 export interface SFCParseOptions {
   needMap?: boolean
@@ -47,6 +49,8 @@ export interface SFCDescriptor {
   customBlocks: SFCBlock[]
 }
 
+const SFC_CACHE_MAX_SIZE = 500
+const sourceToSFC = new LRUCache<string, SFCDescriptor>(SFC_CACHE_MAX_SIZE)
 export function parse(
   source: string,
   {
@@ -55,7 +59,11 @@ export function parse(
     sourceRoot = ''
   }: SFCParseOptions = {}
 ): SFCDescriptor {
-  // TODO check cache
+  const sourceKey = source + needMap + filename + sourceRoot
+  const cache = sourceToSFC.get(sourceKey)
+  if (cache) {
+    return cache
+  }
 
   const sfc: SFCDescriptor = {
     filename,
@@ -73,19 +81,22 @@ export function parse(
     if (node.type !== NodeTypes.ELEMENT) {
       return
     }
+    if (!node.children.length) {
+      return
+    }
     switch (node.tag) {
       case 'template':
         if (!sfc.template) {
           sfc.template = createBlock(node) as SFCTemplateBlock
         } else {
-          // TODO warn duplicate template
+          warnDuplicateBlock(source, filename, node)
         }
         break
       case 'script':
         if (!sfc.script) {
           sfc.script = createBlock(node) as SFCScriptBlock
         } else {
-          // TODO warn duplicate script
+          warnDuplicateBlock(source, filename, node)
         }
         break
       case 'style':
@@ -100,9 +111,27 @@ export function parse(
   if (needMap) {
     // TODO source map
   }
-  // TODO set cache
+  sourceToSFC.set(sourceKey, sfc)
 
   return sfc
+}
+
+function warnDuplicateBlock(
+  source: string,
+  filename: string,
+  node: ElementNode
+) {
+  const codeFrame = generateCodeFrame(
+    source,
+    node.loc.start.offset,
+    node.loc.end.offset
+  )
+  const location = `${filename}:${node.loc.start.line}:${node.loc.start.column}`
+  console.warn(
+    `Single file component can contain only one ${
+      node.tag
+    } element (${location}):\n\n${codeFrame}`
+  )
 }
 
 function createBlock(node: ElementNode): SFCBlock {

@@ -63,14 +63,13 @@ export {
   vModelSelect,
   vModelDynamic
 } from './directives/vModel'
-
 export { withModifiers, withKeys } from './directives/vOn'
+
+// DOM-only components
+export { Transition, TransitionProps } from './components/Transition'
+
+export { vShow } from './directives/vShow'
 
 // re-export everything from core
 // h, Component, reactivity API, nextTick, flags & types
 export * from '@vue/runtime-core'
-
-// Type augmentations
-export interface ComponentPublicInstance {
-  $el: Element
-}
