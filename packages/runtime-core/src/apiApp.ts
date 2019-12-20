@@ -4,7 +4,7 @@ import { ComponentPublicInstance } from './componentProxy'
 import { Directive, validateDirectiveName } from './directives'
 import { RootRenderFunction } from './renderer'
 import { InjectionKey } from './apiInject'
-import { isFunction, NO } from '@vue/shared'
+import { isFunction, NO, isObject } from '@vue/shared'
 import { warn } from './warning'
 import { createVNode } from './vnode'
 
@@ -102,7 +102,7 @@ export function createAppAPI<HostNode, HostElement>(
         } else if (isFunction(plugin)) {
           installedPlugins.add(plugin)
           plugin(app)
-        } else if (isFunction(plugin.install)) {
+        } else if (plugin && isFunction(plugin.install)) {
           installedPlugins.add(plugin)
           plugin.install(app)
         } else if (__DEV__) {
@@ -137,15 +137,12 @@ export function createAppAPI<HostNode, HostElement>(
         }
         if (!component) {
           return context.components[name]
-        } else {
-          if (__DEV__ && context.components[name]) {
-            warn(
-              `Component "${name}" has already been registered in target app.`
-            )
-          }
-          context.components[name] = component
-          return app
         }
+        if (__DEV__ && context.components[name]) {
+          warn(`Component "${name}" has already been registered in target app.`)
+        }
+        context.components[name] = component
+        return app
       },
 
       directive(name: string, directive?: Directive) {
@@ -155,30 +152,32 @@ export function createAppAPI<HostNode, HostElement>(
 
         if (!directive) {
           return context.directives[name] as any
-        } else {
-          if (__DEV__ && context.directives[name]) {
-            warn(
-              `Directive "${name}" has already been registered in target app.`
-            )
-          }
-          context.directives[name] = directive
-          return app
         }
+        if (__DEV__ && context.directives[name]) {
+          warn(`Directive "${name}" has already been registered in target app.`)
+        }
+        context.directives[name] = directive
+        return app
       },
 
       mount(
         rootComponent: Component,
         rootContainer: HostElement,
-        rootProps?: Data
+        rootProps?: Data | null
       ): any {
         if (!isMounted) {
+          if (rootProps != null && !isObject(rootProps)) {
+            __DEV__ &&
+              warn(`root props passed to app.mount() must be an object.`)
+            rootProps = null
+          }
           const vnode = createVNode(rootComponent, rootProps)
           // store app context on the root VNode.
           // this will be set on the root instance on initial mount.
           vnode.appContext = context
           render(vnode, rootContainer)
           isMounted = true
-          return vnode.component!.renderProxy
+          return vnode.component!.proxy
         } else if (__DEV__) {
           warn(
             `App has already been mounted. Create a new app instance instead.`
