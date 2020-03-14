@@ -49,7 +49,7 @@ export const ErrorTypeStrings: Record<number | string, string> = {
   [ErrorCodes.FUNCTION_REF]: 'ref function',
   [ErrorCodes.SCHEDULER]:
     'scheduler flush. This is likely a Vue internals bug. ' +
-    'Please open an issue at https://new-issue.vuejs.org/?repo=vuejs/vue'
+    'Please open an issue at https://new-issue.vuejs.org/?repo=vuejs/vue-next'
 }
 
 export type ErrorTypes = LifecycleHooks | ErrorCodes
@@ -74,24 +74,26 @@ export function callWithAsyncErrorHandling(
   instance: ComponentInternalInstance | null,
   type: ErrorTypes,
   args?: unknown[]
-) {
+): any[] {
   if (isFunction(fn)) {
     const res = callWithErrorHandling(fn, instance, type, args)
     if (res != null && !res._isVue && isPromise(res)) {
-      res.catch((err: Error) => {
+      res.catch(err => {
         handleError(err, instance, type)
       })
     }
     return res
   }
 
+  const values = []
   for (let i = 0; i < fn.length; i++) {
-    callWithAsyncErrorHandling(fn[i], instance, type, args)
+    values.push(callWithAsyncErrorHandling(fn[i], instance, type, args))
   }
+  return values
 }
 
 export function handleError(
-  err: Error,
+  err: unknown,
   instance: ComponentInternalInstance | null,
   type: ErrorTypes
 ) {
@@ -134,7 +136,7 @@ export function setErrorRecovery(value: boolean) {
   forceRecover = value
 }
 
-function logError(err: Error, type: ErrorTypes, contextVNode: VNode | null) {
+function logError(err: unknown, type: ErrorTypes, contextVNode: VNode | null) {
   // default behavior is crash in prod & test, recover in dev.
   if (__DEV__ && (forceRecover || !__TEST__)) {
     const info = ErrorTypeStrings[type]

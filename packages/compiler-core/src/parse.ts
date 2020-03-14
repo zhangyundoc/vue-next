@@ -1,5 +1,5 @@
 import { ParserOptions } from './options'
-import { NO, isArray } from '@vue/shared'
+import { NO, isArray, makeMap } from '@vue/shared'
 import { ErrorCodes, createCompilerError, defaultOnError } from './errors'
 import {
   assert,
@@ -21,7 +21,8 @@ import {
   SourceLocation,
   TextNode,
   TemplateChildNode,
-  InterpolationNode
+  InterpolationNode,
+  createRoot
 } from './ast'
 import { extend } from '@vue/shared'
 
@@ -66,22 +67,16 @@ interface ParserContext {
   inPre: boolean
 }
 
-export function parse(content: string, options: ParserOptions = {}): RootNode {
+export function baseParse(
+  content: string,
+  options: ParserOptions = {}
+): RootNode {
   const context = createParserContext(content, options)
   const start = getCursor(context)
-
-  return {
-    type: NodeTypes.ROOT,
-    children: parseChildren(context, TextModes.DATA, []),
-    helpers: [],
-    components: [],
-    directives: [],
-    hoists: [],
-    imports: [],
-    cached: 0,
-    codegenNode: undefined,
-    loc: getSelection(context, start)
-  }
+  return createRoot(
+    parseChildren(context, TextModes.DATA, []),
+    getSelection(context, start)
+  )
 }
 
 function createParserContext(
@@ -230,7 +225,7 @@ function parseChildren(
     }
   }
 
-  return removedWhitespace ? nodes.filter(node => node !== null) : nodes
+  return removedWhitespace ? nodes.filter(Boolean) : nodes
 }
 
 function pushNode(nodes: TemplateChildNode[], node: TemplateChildNode): void {
@@ -362,7 +357,7 @@ function parseElement(
 
   // Children.
   ancestors.push(element)
-  const mode = context.options.getTextMode(element.tag, element.ns)
+  const mode = context.options.getTextMode(element.tag, element.ns, parent)
   const children = parseChildren(context, mode, ancestors)
   ancestors.pop()
 
@@ -372,7 +367,7 @@ function parseElement(
   if (startsWithEndTagOpen(context.source, element.tag)) {
     parseTag(context, TagType.End, parent)
   } else {
-    emitError(context, ErrorCodes.X_MISSING_END_TAG)
+    emitError(context, ErrorCodes.X_MISSING_END_TAG, 0, element.loc.start)
     if (context.source.length === 0 && element.tag.toLowerCase() === 'script') {
       const first = children[0]
       if (first && startsWith(first.loc.source, '<!--')) {
@@ -393,6 +388,10 @@ const enum TagType {
   Start,
   End
 }
+
+const isSpecialTemplateDirective = /*#__PURE__*/ makeMap(
+  `if,else,else-if,for,slot`
+)
 
 /**
  * Parse a tag (E.g. `<div id=a>`) with that type (start tag or end tag).
@@ -457,14 +456,22 @@ function parseTag(
     } else if (
       isCoreComponent(tag) ||
       (options.isBuiltInComponent && options.isBuiltInComponent(tag)) ||
-      /^[A-Z]/.test(tag)
+      /^[A-Z]/.test(tag) ||
+      tag === 'component'
     ) {
       tagType = ElementTypes.COMPONENT
     }
 
     if (tag === 'slot') {
       tagType = ElementTypes.SLOT
-    } else if (tag === 'template') {
+    } else if (
+      tag === 'template' &&
+      props.some(p => {
+        return (
+          p.type === NodeTypes.DIRECTIVE && isSpecialTemplateDirective(p.name)
+        )
+      })
+    ) {
       tagType = ElementTypes.TEMPLATE
     }
   }
@@ -687,7 +694,7 @@ function parseAttributeValue(
     if (!match) {
       return undefined
     }
-    let unexpectedChars = /["'<=`]/g
+    const unexpectedChars = /["'<=`]/g
     let m: RegExpExecArray | null
     while ((m = unexpectedChars.exec(match[0])) !== null) {
       emitError(
@@ -817,8 +824,8 @@ function parseTextData(
 
     if (head[0] === '&') {
       // Named character reference.
-      let name = '',
-        value: string | undefined = undefined
+      let name = ''
+      let value: string | undefined = undefined
       if (/[0-9a-z]/i.test(rawText[1])) {
         for (
           let length = context.options.maxCRNameLength;
@@ -833,7 +840,7 @@ function parseTextData(
           if (
             mode === TextModes.ATTRIBUTE_VALUE &&
             !semi &&
-            /[=a-z0-9]/i.test(rawText[1 + name.length] || '')
+            /[=a-z0-9]/i.test(rawText[name.length + 1] || '')
           ) {
             decodedText += '&' + name
             advance(1 + name.length)
@@ -848,7 +855,6 @@ function parseTextData(
             }
           }
         } else {
-          emitError(context, ErrorCodes.UNKNOWN_NAMED_CHARACTER_REFERENCE)
           decodedText += '&' + name
           advance(1 + name.length)
         }
@@ -963,9 +969,9 @@ function getNewPosition(
 function emitError(
   context: ParserContext,
   code: ErrorCodes,
-  offset?: number
+  offset?: number,
+  loc: Position = getCursor(context)
 ): void {
-  const loc = getCursor(context)
   if (offset) {
     loc.offset += offset
     loc.column += offset
